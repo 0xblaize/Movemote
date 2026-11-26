@@ -1,0 +1,19 @@
+{
+  "name": "movemote",
+  "version": "0.1.0",
+  "description": "Remote mouse control for PC and Mac. Drive the host's real cursor from a phone or another computer.",
+  "main": "src/main/index.js",
+  "scripts": {
+    "start": "electron .",
+    "server:test": "MOVEMOTE_MOCK=1 node src/main/server.js"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "45.5.0"
+  },
+  "dependencies": {
+    "@nut-tree-fork/nut-js": "4.2.6",
+    "qrcode": "1.5.4",
+    "ws": "8.23.0"
+  }
+}

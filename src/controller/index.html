@@ -1,0 +1,107 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>Movemote Controller</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  html, body { margin: 0; height: 100%; background: #0e0e10; color: #e8e8ea; font: 14px system-ui, sans-serif; overflow: hidden; }
+  #wrap { display: flex; flex-direction: column; height: 100%; }
+  #status { padding: 8px 12px; text-align: center; font-size: 12px; color: #8a8a90; }
+  #status.live { color: #7ee29a; }
+  #pad {
+    flex: 1; margin: 10px; border-radius: 14px;
+    background: repeating-linear-gradient(45deg,#17171b,#17171b 12px,#191920 12px,#191920 24px);
+    border: 1px solid #26262c; touch-action: none; position: relative;
+  }
+  #pad .hint { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #55555c; pointer-events: none; }
+  #buttons { display: flex; gap: 10px; padding: 0 10px 12px; }
+  #buttons button { flex: 1; padding: 16px; font: inherit; border: 0; border-radius: 12px; background: #1d1d22; color: #e8e8ea; }
+  #buttons button:active { background: #2a2a31; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="status">connecting…</div>
+  <div id="pad"><div class="hint">drag to move · tap to click · two fingers to scroll</div></div>
+  <div id="buttons">
+    <button id="left">Left click</button>
+    <button id="right">Right click</button>
+  </div>
+</div>
+
+<script>
+  const params = new URLSearchParams(location.search);
+  const token = params.get('token') || '';
+  const wsUrl = `ws://${location.host}/ws?token=${encodeURIComponent(token)}`;
+
+  const statusEl = document.getElementById('status');
+  const pad = document.getElementById('pad');
+  let ws, allowed = false;
+
+  // Movement scaling: tune for pointer feel.
+  const SPEED = 1.6;
+
+  function connect() {
+    ws = new WebSocket(wsUrl);
+    ws.onopen = () => {
+      ws.send(JSON.stringify({ t: 'hello', name: navigator.platform || 'controller' }));
+      setStatus();
+    };
+    ws.onclose = () => { allowed = false; statusEl.textContent = 'disconnected — retrying'; statusEl.className = ''; setTimeout(connect, 1000); };
+    ws.onmessage = (ev) => {
+      const m = JSON.parse(ev.data);
+      if (m.t === 'welcome') allowed = m.allowControl;
+      if (m.t === 'state') allowed = m.allowControl;
+      setStatus();
+    };
+  }
+  function setStatus() {
+    if (allowed) { statusEl.textContent = '● connected — controlling'; statusEl.className = 'live'; }
+    else { statusEl.textContent = 'connected — waiting for host to allow control'; statusEl.className = ''; }
+  }
+  function send(obj) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(obj)); }
+
+  // ---- trackpad gestures ----
+  let last = null, moved = false, startT = 0;
+  let twoFinger = false, lastScroll = null;
+
+  pad.addEventListener('pointerdown', (e) => {
+    pad.setPointerCapture(e.pointerId);
+    last = { x: e.clientX, y: e.clientY };
+    moved = false; startT = Date.now();
+  });
+  pad.addEventListener('pointermove', (e) => {
+    if (!last) return;
+    const dx = e.clientX - last.x, dy = e.clientY - last.y;
+    last = { x: e.clientX, y: e.clientY };
+    if (Math.abs(dx) + Math.abs(dy) > 2) moved = true;
+    send({ t: 'move', dx: dx * SPEED, dy: dy * SPEED });
+  });
+  pad.addEventListener('pointerup', (e) => {
+    pad.releasePointerCapture(e.pointerId);
+    if (!moved && Date.now() - startT < 250) send({ t: 'click', button: 'left' });
+    last = null;
+  });
+
+  // Two-finger scroll (touch).
+  pad.addEventListener('touchmove', (e) => {
+    if (e.touches.length === 2) {
+      twoFinger = true;
+      const y = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+      const x = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+      if (lastScroll) send({ t: 'scroll', dx: Math.round((x - lastScroll.x) / 4), dy: Math.round((lastScroll.y - y) / 4) });
+      lastScroll = { x, y };
+    }
+  }, { passive: true });
+  pad.addEventListener('touchend', () => { twoFinger = false; lastScroll = null; });
+
+  document.getElementById('left').onclick = () => send({ t: 'click', button: 'left' });
+  document.getElementById('right').onclick = () => send({ t: 'click', button: 'right' });
+
+  connect();
+</script>
+</body>
+</html>
