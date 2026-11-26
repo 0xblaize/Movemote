@@ -5,27 +5,24 @@
 <title>Movemote</title>
 <style>
   :root { color-scheme: dark; }
-  body {
-    margin: 0; font: 14px/1.5 system-ui, sans-serif;
-    background: #0e0e10; color: #e8e8ea;
-    display: flex; flex-direction: column; align-items: center;
-    padding: 24px; gap: 16px;
-  }
-  h1 { font-size: 18px; margin: 0; letter-spacing: .5px; }
-  .muted { color: #8a8a90; }
+  body { margin: 0; font: 14px/1.5 system-ui, sans-serif; background: #0e0e10; color: #e8e8ea;
+    display: flex; flex-direction: column; align-items: center; padding: 22px; gap: 14px; }
+  h1 { font-size: 18px; margin: 0; letter-spacing: 1px; }
+  .muted { color: #8a8a90; font-size: 12px; }
   .card { background: #17171b; border: 1px solid #26262c; border-radius: 10px; padding: 16px; width: 100%; box-sizing: border-box; }
-  img#qr { display: block; margin: 0 auto; border-radius: 8px; background: #fff; }
-  code { background: #222; padding: 2px 6px; border-radius: 5px; word-break: break-all; }
-  button {
-    font: inherit; border: 0; border-radius: 8px; padding: 12px 16px;
-    cursor: pointer; width: 100%;
-  }
-  .allow { background: #2563eb; color: #fff; }
-  .stop { background: #3a1212; color: #ffb4b4; border: 1px solid #5a1d1d; }
+  .label { color: #8a8a90; font-size: 11px; text-transform: uppercase; letter-spacing: .8px; }
+  .big { font-size: 30px; font-weight: 700; letter-spacing: 2px; margin: 2px 0 10px; font-variant-numeric: tabular-nums; }
+  .pw { font-size: 26px; font-weight: 700; letter-spacing: 3px; font-family: ui-monospace, monospace; }
+  input.pw { background: #16161a; border: 1px solid #2a2a31; color: #fff; border-radius: 8px; padding: 8px 10px; width: 100%; box-sizing: border-box; }
   .banner { width: 100%; text-align: center; padding: 10px; border-radius: 8px; font-weight: 600; box-sizing: border-box; }
   .banner.on { background: #15381f; color: #7ee29a; border: 1px solid #1f5a31; }
   .banner.off { background: #1a1a1f; color: #7a7a80; }
-  .row { display: flex; gap: 8px; align-items: center; justify-content: space-between; }
+  .row { display: flex; justify-content: space-between; align-items: center; }
+  details { width: 100%; } summary { cursor: pointer; color: #8a8a90; font-size: 12px; }
+  code { background: #222; padding: 2px 6px; border-radius: 5px; word-break: break-all; font-size: 12px; }
+  img#qr { display:block; margin: 10px auto 0; border-radius: 6px; background:#fff; }
+  .dot { font-size: 11px; }
+  .dot.ok { color: #7ee29a; } .dot.bad { color: #ff9a9a; }
 </style>
 </head>
 <body>
@@ -33,47 +30,55 @@
   <div id="banner" class="banner off">No session</div>
 
   <div class="card">
-    <img id="qr" width="240" height="240" alt="pairing QR" />
-    <p class="muted" style="text-align:center;margin:12px 0 4px">Scan from your phone, or open on another computer:</p>
-    <p style="text-align:center"><code id="url">…</code></p>
+    <div class="label">This PC's ID</div>
+    <div class="big" id="id">—</div>
+    <div class="label">Password</div>
+    <input class="pw" id="pw" value="" spellcheck="false" />
+    <p class="muted" style="margin:8px 0 0">Give these to the person connecting. Edit the password to set your own.</p>
   </div>
 
-  <div class="card">
-    <div class="row">
-      <span>Controllers connected</span>
-      <strong id="count">0</strong>
+  <div class="card row">
+    <div><span class="label">Relay</span> <span class="dot" id="relaydot">connecting…</span></div>
+    <div><span class="label">Sessions</span> <strong id="count">0</strong></div>
+  </div>
+
+  <details>
+    <summary>Same network? Use a direct link instead (no relay)</summary>
+    <div class="card" style="margin-top:8px">
+      <p style="text-align:center;margin:0"><code id="lanurl">…</code></p>
+      <img id="qr" width="200" height="200" alt="LAN QR" />
     </div>
-  </div>
+  </details>
 
-  <button id="toggle" class="allow">Allow control</button>
-  <p class="muted" style="font-size:12px;text-align:center">Control is off until you allow it. Anyone controlling moves this computer's real cursor.</p>
+  <p class="muted" style="text-align:center">Anyone with the ID and password moves this computer's real cursor. An active session is always shown above.</p>
 
 <script>
-  let allowed = false;
   const banner = document.getElementById('banner');
-  const toggle = document.getElementById('toggle');
+  const pw = document.getElementById('pw');
 
-  function render() {
-    banner.className = 'banner ' + (allowed ? 'on' : 'off');
-    banner.textContent = allowed ? '● SESSION ACTIVE — cursor can be controlled' : 'No session';
-    toggle.textContent = allowed ? 'Stop control' : 'Allow control';
-    toggle.className = allowed ? 'stop' : 'allow';
+  function renderBanner(n) {
+    const on = n > 0;
+    banner.className = 'banner ' + (on ? 'on' : 'off');
+    banner.textContent = on ? '● SESSION ACTIVE — cursor can be controlled' : 'No session';
   }
 
-  toggle.onclick = async () => {
-    allowed = !allowed;
-    await window.movemote.allowControl(allowed);
-    render();
-  };
+  window.movemote.onBoot((d) => {
+    document.getElementById('id').textContent = d.id;
+    pw.value = d.password;
+    document.getElementById('lanurl').textContent = d.lanUrl;
+    document.getElementById('qr').src = d.lanQr;
+  });
+  window.movemote.onStatus(({ clients }) => { document.getElementById('count').textContent = clients; renderBanner(clients); });
+  window.movemote.onRelay((s) => {
+    const el = document.getElementById('relaydot');
+    if (s.relay === 'registered') { el.textContent = 'online'; el.className = 'dot ok'; }
+    else if (s.relay === 'connected') { el.textContent = 'registering…'; el.className = 'dot'; }
+    else { el.textContent = s.relay; el.className = 'dot bad'; }
+  });
 
-  window.movemote.onBoot(({ url, qr }) => {
-    document.getElementById('url').textContent = url;
-    document.getElementById('qr').src = qr;
-  });
-  window.movemote.onStatus(({ clients }) => {
-    document.getElementById('count').textContent = clients;
-  });
-  render();
+  let t;
+  pw.addEventListener('input', () => { clearTimeout(t); t = setTimeout(() => window.movemote.setPassword(pw.value.trim()), 400); });
+  renderBanner(0);
 </script>
 </body>
 </html>

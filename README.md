@@ -17,15 +17,32 @@ Control is **off** until the host clicks **Allow control**. While a session is
 active the host window shows a green `SESSION ACTIVE` banner and the tray tooltip
 changes. There is no hidden/background mode.
 
-## Run (dev)
+## Connect from anywhere (ID + password)
+
+Two PCs in different places connect by **ID + password**, like TeamViewer. Both
+dial out to a small relay server you host (see [`relay/`](relay/README.md)) — no
+port forwarding, no VPN.
+
+1. Deploy the relay once (one command, see `relay/README.md`). You get an
+   `https://your-relay…` URL.
+2. On the PC to control: `MOVEMOTE_RELAY=wss://your-relay… npm start`. The window
+   shows **This PC's ID** and a **Password**.
+3. From any other computer, open `https://your-relay…` in a browser, type that
+   ID and password, and control the PC.
+
+The password is checked on the host, not the relay. A fresh password is
+generated each launch; edit the field to set your own.
+
+## Run (dev / same network)
 
 ```bash
 npm install
 npm start
 ```
 
-The host window shows a QR code and a URL like `http://192.168.x.x:8787/?token=…`.
-Open it on your phone or another computer, then click **Allow control** on the host.
+The host window also shows a QR code and a URL like
+`http://192.168.x.x:8787/?token=…` under "Same network?". On the same WiFi you
+can open that directly, no relay needed.
 
 - drag on the pad → move cursor
 - tap → left click

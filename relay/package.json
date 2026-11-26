@@ -1,0 +1,9 @@
+{
+  "name": "movemote-relay",
+  "version": "0.1.0",
+  "description": "Movemote rendezvous relay — pairs a host and controller by ID + password.",
+  "main": "server.js",
+  "scripts": { "start": "node server.js" },
+  "license": "MIT",
+  "dependencies": { "ws": "8.23.0" }
+}
